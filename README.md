@@ -80,7 +80,3 @@ Abre **Apoyo a la prevención**, escoge una localidad disponible y deja el inter
 ## Dashboard exploratorio
 
 El dashboard filtra por año, localidad y gravedad. Muestra siniestros por año, localidad, hora, gravedad y tipo, además de vehículos, actores viales, hipótesis y un cruce de localidad-hora-gravedad. Los conteos sirven para identificar concentración de eventos; no representan por sí solos una tasa de riesgo ni prueban causalidad.
-
-## Publicación en GitHub
-
-`.gitignore` excluye `.env`, entornos virtuales, cachés y archivos de datos pesados. Sube el Excel solo si tienes autorización para redistribuirlo. Antes de publicar, confirma que `git status` no muestre `.env` ni archivos con credenciales.
