@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
+from datetime import date
 
 import pandas as pd
 import plotly.express as px
 import psycopg2
 import streamlit as st
 from dotenv import load_dotenv
+from prevencion import EVENTS_SQL, summarize
 
 load_dotenv()
 st.set_page_config(page_title="Riesgo vial Bogotá", layout="wide")
@@ -76,8 +78,80 @@ def chart(data: pd.DataFrame, x: str, y: str, title: str) -> None:
         st.plotly_chart(px.bar(data, x=x, y=y, title=title, text_auto=True), use_container_width=True)
 
 
+def prevention_section() -> None:
+    """Presenta una prioridad explicable sobre los datos históricos disponibles."""
+    st.header("Apoyo a la prevención")
+    st.caption("Patrones históricos para orientar una revisión preventiva. No son tasas de riesgo ni demuestran causalidad.")
+    options = query("SELECT nombre FROM localidades ORDER BY nombre")
+    years = query("SELECT DISTINCT EXTRACT(YEAR FROM fecha)::int AS anio FROM siniestros WHERE fecha IS NOT NULL ORDER BY anio")
+    if options.empty or years.empty:
+        st.info("La base aún no contiene localidades y fechas para analizar. Carga los datos con el ETL y vuelve a consultar.")
+        return
+
+    left, right = st.columns([2, 3])
+    with left:
+        locality = st.selectbox("Localidad para priorizar", options.nombre.tolist())
+    year_values = [int(value) for value in years.anio.tolist()]
+    with right:
+        if len(year_values) == 1:
+            first_year = last_year = year_values[0]
+            st.caption(f"Periodo disponible: {first_year}")
+        else:
+            first_year, last_year = st.select_slider(
+                "Periodo de análisis", options=year_values,
+                value=(year_values[0], year_values[-1]),
+                format_func=lambda value: str(value),
+            )
+    start, end = date(int(first_year), 1, 1), date(int(last_year) + 1, 1, 1)
+    events = query(EVENTS_SQL, (start, end))
+    ids_sql = """SELECT a.codigo_accidente, a.condicion FROM actores_viales a
+        JOIN siniestros s ON s.codigo_accidente=a.codigo_accidente
+        WHERE s.fecha >= %s AND s.fecha < %s"""
+    actors = query(ids_sql, (start, end))
+    hypothesis_sql = """SELECT sh.codigo_accidente, h.descripcion FROM siniestro_hipotesis sh
+        JOIN hipotesis h ON h.codigo_causa=sh.codigo_causa
+        JOIN siniestros s ON s.codigo_accidente=sh.codigo_accidente
+        WHERE s.fecha >= %s AND s.fecha < %s"""
+    hypotheses = query(hypothesis_sql, (start, end))
+    result = summarize(events, actors, hypotheses, locality, events)
+    if not result["count"]:
+        st.warning("No hay siniestros de esta localidad dentro del periodo seleccionado.")
+        return
+
+    metrics = st.columns(4)
+    metrics[0].metric("Prioridad analítica", result["priority"])
+    metrics[1].metric("Siniestros", f"{result['count']:,}")
+    metrics[2].metric("Participación en Bogotá", f"{result['share']:.1%}")
+    metrics[3].metric("Con muertos o heridos", f"{result['severe_share']:.1%}")
+    st.caption(f"Puntaje transparente: {result['score']} (concentración/volumen: hasta 2; gravedad: hasta 2; recurrencia horaria: hasta 1). Umbrales indicativos del MVP; la participación no ajusta por población, viajes ni extensión territorial.")
+    detail, actions = st.columns(2)
+    with detail:
+        st.subheader("Situación y evidencia")
+        for reason in result["reasons"]:
+            st.markdown(f"- {reason}")
+        segment = result["events"]
+        c1, c2 = st.columns(2)
+        with c1:
+            chart(segment.gravedad.value_counts().rename_axis("gravedad").reset_index(name="siniestros"), "gravedad", "siniestros", "Gravedad registrada")
+        with c2:
+            chart(segment.choque.value_counts().head(8).rename_axis("choque").reset_index(name="siniestros"), "choque", "siniestros", "Tipos de choque frecuentes")
+    with actions:
+        st.subheader("Recomendaciones derivadas")
+        for action in result["recommendations"]:
+            st.markdown(f"- {action}")
+        st.caption("Las hipótesis son categorías registradas en los datos; no constituyen causalidad demostrada. La decisión de actuar requiere validación en campo.")
+
+
 def main() -> None:
     st.title("Siniestros viales en Bogotá D.C.")
+    try:
+        prevention_section()
+    except Exception as exc:
+        st.error("No fue posible consultar el módulo preventivo. Verifica la conexión y que el esquema base esté instalado.")
+        st.exception(exc)
+        st.stop()
+    st.divider()
+    st.subheader("Exploración histórica")
     st.caption("Análisis exploratorio de riesgo vial. Los filtros se aplican sobre siniestros.")
     years, localities, severities = filters()
     where, params = where_clause(years, localities, severities)

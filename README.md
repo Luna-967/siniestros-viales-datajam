@@ -53,7 +53,31 @@ Pipeline reproducible para cargar y analizar siniestros viales: **Excel → Pand
 
 En `hipotesis`, `codigo_causa` es la PK. `descripcion` no es única porque el diccionario fuente contiene descripciones repetidas para códigos diferentes.
 
-## Dashboard
+## Sistema de apoyo a la prevención
+
+La pestaña principal del dashboard integra un módulo preventivo con los catálogos y tablas que ya carga el ETL: `siniestros`, `localidades`, `gravedades`, `tipos_siniestro`, `tipos_choque`, `disenos_lugar`, `actores_viales`, `siniestro_hipotesis` e `hipotesis`. No requiere tablas ni cambios destructivos en PostgreSQL.
+
+Selecciona una localidad y el intervalo de años. La vista muestra el volumen y su participación en los siniestros bogotanos del mismo periodo, proporción de casos con muertos o heridos entre los que tienen gravedad registrada, patrones horarios, clases y tipos de choque, condiciones de actores, hipótesis registradas y diseño del lugar. Los registros sin dato se excluyen de las proporciones de cada categoría.
+
+### Prioridad explicable
+
+`prevencion.py` aplica reglas explícitas y acumulables: hasta 2 puntos si hay al menos 30 casos (1 punto) y/o una participación local al menos 1.5 veces el reparto uniforme entre localidades (2 puntos); 2 puntos si la proporción de siniestros con muertos o heridos supera en 10 puntos porcentuales la de Bogotá y alcanza al menos 20%; 1 punto si, con al menos 10 horas conocidas, una hora concentra 15% o más. 4 o más puntos = **ALTA**, 2–3 = **MEDIA**, 0–1 = **SEGUIMIENTO**. Sin registros, no asigna prioridad. La interfaz enseña las evidencias y el puntaje.
+
+Las recomendaciones se activan por señales concretas: concentración de volumen → evaluación de campo; gravedad elevada → evaluación prioritaria de sitios graves; concentración horaria → observación y campaña en esa franja; actor/condición frecuente (35% o más) → orientación pedagógica; hipótesis frecuente (20% o más) → validación de campo; diseño repetido (35% o más y 10 casos con dato) → inspección de señalización/condiciones. Cuando ninguna regla se activa, recomienda seguimiento y validación territorial. Son sugerencias analíticas, no órdenes.
+
+**Alcance y límites:** el reparto uniforme entre localidades es una referencia simple de concentración, no una tasa de riesgo. No hay denominadores de población, viajes, flujo vehicular ni longitud vial. Los datos observacionales no prueban causalidad; en particular, hipótesis y condiciones son categorías registradas. No se añade aprendizaje automático porque el MVP busca reglas comprensibles y los datos disponibles no ofrecen por sí solos una etiqueta de resultado futuro. Los umbrales son configurables en `prevencion.py` y deben revisarse con especialistas. Valida en terreno cualquier acción.
+
+### Ejecución y demo
+
+Después de instalar requisitos, configurar `.env`, ejecutar el SQL inicial y cargar el Excel con el ETL, inicia la app:
+
+```powershell
+python -m streamlit run dashboard.py
+```
+
+Abre **Apoyo a la prevención**, escoge una localidad disponible y deja el intervalo en todo el histórico cargado para una primera demostración. Se muestran situación, evidencia, prioridad y recomendaciones derivadas. El escenario concreto depende de las localidades, fechas y patrones que efectivamente haya cargado la base; no se incluye una demostración ficticia ni datos de ejemplo inventados. Si no hay datos, ejecuta primero `python etl_siniestros.py`.
+
+## Dashboard exploratorio
 
 El dashboard filtra por año, localidad y gravedad. Muestra siniestros por año, localidad, hora, gravedad y tipo, además de vehículos, actores viales, hipótesis y un cruce de localidad-hora-gravedad. Los conteos sirven para identificar concentración de eventos; no representan por sí solos una tasa de riesgo ni prueban causalidad.
 

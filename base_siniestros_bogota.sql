@@ -3,13 +3,6 @@
 -- PostgreSQL 14+
 -- Fuente: siniestros_viales_consolidados_bogota_dc.xlsx
 -- ============================================================
--- Correcciones frente al primer diseño:
--- 1. hipotesis.descripcion NO es UNIQUE: el diccionario fuente puede
---    asignar la misma descripción a códigos de causa distintos.
--- 2. El código de causa sigue siendo la PK y la referencia correcta.
--- 3. Se agrega staging.rechazos_carga para auditar filas que no pueden
---    llegar a tablas definitivas (por ejemplo, detalles sin siniestro).
--- ============================================================
 
 BEGIN;
 
