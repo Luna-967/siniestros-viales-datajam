@@ -79,4 +79,14 @@ Abre **Apoyo a la prevención**, escoge una localidad disponible y deja el inter
 
 ## Dashboard exploratorio
 
-El dashboard filtra por año, localidad y gravedad. Muestra siniestros por año, localidad, hora, gravedad y tipo, además de vehículos, actores viales, hipótesis y un cruce de localidad-hora-gravedad. Los conteos sirven para identificar concentración de eventos; no representan por sí solos una tasa de riesgo ni prueban causalidad.
+El dashboard filtra por año, localidad y gravedad. Muestra siniestros por año, localidad, hora, gravedad y tipo, además de actores viales, hipótesis y un cruce de localidad-hora-gravedad. Los conteos sirven para identificar concentración de eventos; no representan por sí solos una tasa de riesgo ni prueban causalidad.
+
+El botón **Descargar PDF** del encabezado usa los filtros activos de año, localidad y gravedad. El reporte contiene métricas, resúmenes agregados y el análisis de apoyo a la prevención para cada localidad. La comparación preventiva usa los filtros de año y gravedad, e incluye todas las localidades para poder contrastarlas. No se exportan datos ni agregaciones de vehículos.
+
+La app genera las descargas desde `export_service.py`. Para exponerlas como API HTTP, inicia un segundo terminal en la carpeta del proyecto y ejecuta:
+
+```powershell
+python -m uvicorn export_api:app --host 127.0.0.1 --port 8000
+```
+
+Ruta disponible: `GET /api/siniestros/exportar-pdf`. Acepta filtros repetibles, por ejemplo `?anio=2022&localidad=Suba&gravedad=1`; se pueden repetir como `?anio=2021&anio=2022&localidad=Suba&localidad=Usaquén&gravedad=1&gravedad=2`. La documentación interactiva de la API queda en `http://127.0.0.1:8000/api/docs`.
